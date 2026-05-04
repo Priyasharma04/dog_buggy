@@ -1,4 +1,5 @@
-
+MODEL_PATH = "yolov5nu.pt"
+TRACKER_CONFIG = "bytetrack.yaml"
 CAMERA_INDEX = 0
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480

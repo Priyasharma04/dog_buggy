@@ -1,58 +1,52 @@
-import sys
-import torch
-import cv2
-import numpy as np
-
-# Add local yolov5 folder to path
-sys.path.append('yolov5')
-
-from models.common import DetectMultiBackend
-from utils.general import non_max_suppression, scale_boxes
-from config import PERSON_CLASS_ID, CONF_THRESHOLD
+from ultralytics import YOLO
+from config import MODEL_PATH, TRACKER_CONFIG, PERSON_CLASS_ID, CONF_THRESHOLD
 
 
 class PersonDetector:
     def __init__(self):
-        self.device = 'cpu'
-        self.model = DetectMultiBackend('yolov5n.pt', device=self.device)
-        self.model.eval()
+        self.model = YOLO(MODEL_PATH)
 
     def track_people(self, frame):
-        img = cv2.resize(frame, (640, 640))
-        img = img[:, :, ::-1]  # BGR → RGB
-        img = np.ascontiguousarray(img)
-
-        img = torch.from_numpy(img).float()
-        img = img.permute(2, 0, 1) / 255.0
-        img = img.unsqueeze(0)
-
-        pred = self.model(img)
-        pred = non_max_suppression(pred, CONF_THRESHOLD)
+        results = self.model.track(
+            source=frame,
+            persist=True,
+            tracker=TRACKER_CONFIG,
+            conf=CONF_THRESHOLD,
+            verbose=False
+        )
 
         detections = []
 
-        if len(pred[0]) == 0:
+        if not results or len(results) == 0:
             return detections
 
-        # scale boxes back to original frame
-        pred[0][:, :4] = scale_boxes(img.shape[2:], pred[0][:, :4], frame.shape).round()
+        result = results[0]
+        boxes = result.boxes
 
-        for i, det in enumerate(pred[0]):
-            x1, y1, x2, y2, conf, cls = det
+        if boxes is None:
+            return detections
 
-            if int(cls) != PERSON_CLASS_ID:
+        xyxy = boxes.xyxy.cpu().numpy()
+        cls = boxes.cls.cpu().numpy().astype(int)
+        ids = boxes.id.cpu().numpy().astype(int) if boxes.id is not None else None
+        confs = boxes.conf.cpu().numpy()
+
+        for i, box in enumerate(xyxy):
+            if cls[i] != PERSON_CLASS_ID:
                 continue
 
-            x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+            track_id = int(ids[i]) if ids is not None and i < len(ids) else -1
+
+            x1, y1, x2, y2 = map(int, box)
             cx = (x1 + x2) // 2
             cy = (y1 + y2) // 2
 
             detections.append({
-                "id": i,
+                "id": track_id,   # ✅ REAL ID
                 "bbox": (x1, y1, x2, y2),
                 "center": (cx, cy),
-                "area": (x2 - x1) * (y2 - y1),
-                "conf": float(conf)
+                "area": (x2 - x1)*(y2 - y1),
+                "conf": float(confs[i])
             })
 
         return detections
