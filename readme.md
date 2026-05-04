@@ -1,11 +1,14 @@
 1. Installation Steps
 
 Step 1: Update system and install pip
+
 sudo apt update
 sudo apt install python3-pip -y
+
 Step 2: Clone the repository
 git clone https://github.com/Priyasharma04/dog_buggy.git
 cd dog_buggy
+
 Step 3: Install dependencies
 pip3 install -r requirements_kit.txt
 
