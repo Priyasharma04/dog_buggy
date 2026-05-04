@@ -1,6 +1,5 @@
 import cv2
 import time
-
 from core.detector import PersonDetector
 from core.owner_manager import OwnerManager
 from core.behavior import BehaviorManager
